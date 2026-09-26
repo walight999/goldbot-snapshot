@@ -5,7 +5,7 @@
 //        OUT_DIR (default ./out)
 //
 // Read-only by design: every write request to TradingView (e.g. /savesettings/ fired by the
-// dark-theme switch) is aborted, so the owner's account settings and layouts never change.
+// theme switch) is aborted, so the owner's account settings and layouts never change.
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -26,7 +26,12 @@ export const LAYOUTS = [
 ];
 
 const WIDTH = 1920, HEIGHT = 1080;
-const THEME = 'dark';                 // chart-img used theme "dark"
+const THEME = 'light';                // White's pick: white background (chart-img used dark)
+const PANE_OVERRIDES = {               // no grid lines, on every chart of the layout
+  'paneProperties.gridLinesMode': 'none',
+  'paneProperties.vertGridProperties.color': 'rgba(0,0,0,0)',
+  'paneProperties.horzGridProperties.color': 'rgba(0,0,0,0)',
+};
 const STUDY_TIMEOUT_MS = 60_000;      // Golden Zone Radar alone takes ~12s to compute
 const SETTLE_MS = 1_500;              // repaint after the last study finishes
 const BLOCK_HOSTS = /doubleclick\.net|google-analytics\.com|analytics\.google\.com|googletagmanager\.com|google\.com\/(g|ccm)\/collect|snowplow/;
@@ -136,13 +141,16 @@ export async function captureAll(layouts, { outDir = process.env.OUT_DIR || 'out
         if (await denied.isVisible()) throw new Error(`layout ${L.id} not accessible by this account`);
 
         await waitForChartReady(page);
-        const theme = await page.evaluate(async theme => {
-          const themes = await window.TradingViewApi.themes();
+        const theme = await page.evaluate(async ([theme, overrides]) => {
+          const api = window.TradingViewApi;
+          const themes = await api.themes();
           // always apply: getCurrentThemeName() can already say "dark" (app chrome) while the
           // layout's own saved chart colours are still light — only setStdTheme repaints the panes
           await themes.setStdTheme(theme);
+          // after the theme (setStdTheme resets pane colours); session-only — saves are aborted
+          for (let i = 0; i < api.chartsCount(); i++) api.chart(i).applyOverrides(overrides);
           return themes.getCurrentThemeName();
-        }, THEME);
+        }, [THEME, PANE_OVERRIDES]);
         if (theme !== THEME) throw new Error(`theme switch failed (still ${theme})`);
         await page.addStyleTag({ content: '.tv-floating-toolbar{display:none!important}' });
         await page.keyboard.press('Escape');      // dismiss any popup/dialog
