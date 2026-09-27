@@ -1,16 +1,14 @@
 {
   "name": "goldbot-snapshot",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Hourly TradingView snapshots for GoldBot (LINE) via Playwright on GitHub Actions",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "capture": "node capture.mjs",
+    "run": "node run.mjs"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
     "playwright": "^1.63.0"
-  }
+  },
+  "private": true
 }

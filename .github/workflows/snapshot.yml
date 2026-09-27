@@ -1,0 +1,65 @@
+name: snapshot
+
+# Primary trigger: cron-job.org → workflow_dispatch at HH:01 every hour (on time).
+# Backup: GitHub's own schedule (often runs late; GoldBot ignores a second upload in the same hour).
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Test: send all 3 layouts now, even on a weekend"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "7 * * * *"
+
+concurrency:
+  group: snapshot
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Weekend check (Asia/Bangkok)
+        id: day
+        run: |
+          dow=$(TZ=Asia/Bangkok date +%u)   # 6=Sat 7=Sun
+          if [ "$dow" -ge 6 ] && [ "${{ inputs.force }}" != "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"; echo "Weekend in Bangkok — skipping"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.day.outputs.skip != 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.day.outputs.skip != 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        if: steps.day.outputs.skip != 'true'
+        run: npm ci
+
+      - name: Cache Playwright browser
+        if: steps.day.outputs.skip != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium
+        if: steps.day.outputs.skip != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture + send to GoldBot
+        if: steps.day.outputs.skip != 'true'
+        env:
+          TV_SESSION_ID: ${{ secrets.TV_SESSION_ID }}
+          TV_SESSION_ID_SIGN: ${{ secrets.TV_SESSION_ID_SIGN }}
+          GOLDBOT_URL: ${{ secrets.GOLDBOT_URL }}
+          SNAPSHOT_TOKEN: ${{ secrets.SNAPSHOT_TOKEN }}
+          FORCE: ${{ inputs.force && '1' || '' }}
+        run: node run.mjs
+      # No artifact upload on purpose: this repo is public and the charts show private indicators.

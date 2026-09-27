@@ -9,6 +9,7 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // Minimal .env loader (no dependency)
 if (fs.existsSync('.env')) {
@@ -197,7 +198,7 @@ export async function captureAll(layouts, { outDir = process.env.OUT_DIR || 'out
   return results;
 }
 
-if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const ids = process.argv.slice(2);
   const layouts = ids.length ? LAYOUTS.filter(l => ids.includes(l.id) || ids.includes(l.label)) : LAYOUTS;
   const res = await captureAll(layouts);
