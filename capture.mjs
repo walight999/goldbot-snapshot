@@ -23,10 +23,10 @@ export const LAYOUTS = [
   { id: 'FmF4WHeh', label: 'stoch' },                   // multi-chart, layout's own interval
   // moveLeft = extra empty bars on the right (chart-img moveLeft 50) so the indicators'
   // right-side labels (Week High, Day Open, Fib levels…) are on screen instead of clipped
-  // barSpacing 9px (TV default ~11.6) fits ~4 days of 1h history + the right margin in our
-  // narrower crop — about what chart-img showed at 1920px
-  { id: '7PPIaw7q', label: 'YLG_TRF', interval: '60', moveLeft: 50, barSpacing: 9 },
-  { id: 'gdi7WRyn', label: 'YLG_v2',  interval: '60', moveLeft: 50, barSpacing: 9 },
+  // White wants lots of room on the right (labels + tables live there): ~105 empty bars ×
+  // 7px ≈ 55% of the width, last candle near 45%; 7px also keeps ~4 days of 1h history
+  { id: '7PPIaw7q', label: 'YLG_TRF', interval: '60', moveLeft: 105, barSpacing: 7 },
+  { id: 'gdi7WRyn', label: 'YLG_v2',  interval: '60', moveLeft: 105, barSpacing: 7 },
 ];
 
 const WIDTH = 1920, HEIGHT = 1080;
