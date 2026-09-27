@@ -55,8 +55,11 @@ async function main() {
 
   if (process.env.DRY_RUN === '1') { console.log('DRY_RUN — not sending'); }
   else {
-    const url = process.env.GOLDBOT_URL, token = process.env.SNAPSHOT_TOKEN;
+    const url = (process.env.GOLDBOT_URL || '').trim(), token = (process.env.SNAPSHOT_TOKEN || '').trim();
     if (!url || !token) throw new Error('GOLDBOT_URL / SNAPSHOT_TOKEN not set');
+    // shape only (the deployment id stays secret): expect https://script.google.com/macros/s/<id>/exec
+    console.log('GOLDBOT_URL shape: ' + url.replace(/\/s\/([^/]+)\//, (m, id) => `/s/<${id.length} chars>/`)
+      .replace(/\/d\/([^/]+)\//, (m, id) => `/d/<${id.length} chars>/`));
     // Apps Script answers POST with a 302 to the result page; fetch follows it (as GET) by default
     const res = await fetch(url, {
       method: 'POST',
