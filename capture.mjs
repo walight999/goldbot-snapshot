@@ -21,12 +21,11 @@ if (fs.existsSync('.env')) {
 // Same layouts/options as GoldBot_ALL_IN_ONE.gs (chart-img calls)
 export const LAYOUTS = [
   { id: 'FmF4WHeh', label: 'stoch' },                   // multi-chart, layout's own interval
-  // moveLeft = extra empty bars on the right (chart-img moveLeft 50) so the indicators'
-  // right-side labels (Week High, Day Open, Fib levels…) are on screen instead of clipped
-  // White wants lots of room on the right (labels + tables live there): ~105 empty bars ×
-  // 7px ≈ 55% of the width, last candle near 45%; 7px also keeps ~4 days of 1h history
-  { id: '7PPIaw7q', label: 'YLG_TRF', interval: '60', moveLeft: 105, barSpacing: 7 },
-  { id: 'gdi7WRyn', label: 'YLG_v2',  interval: '60', moveLeft: 105, barSpacing: 7 },
+  // rightMargin = share of the plot width left empty on the right (chart-img's "moveLeft"):
+  // the indicators' labels + tables live there. barSpacing 11.6px = TV default candle width
+  // (White: bigger candles, same margin as before → last candle sits ~45% across)
+  { id: '7PPIaw7q', label: 'YLG_TRF', interval: '60', rightMargin: 0.55, barSpacing: 11.6 },
+  { id: 'gdi7WRyn', label: 'YLG_v2',  interval: '60', rightMargin: 0.55, barSpacing: 11.6 },
 ];
 
 const WIDTH = 1920, HEIGHT = 1080;
@@ -159,20 +158,24 @@ export async function captureAll(layouts, { outDir = process.env.OUT_DIR || 'out
         await page.addStyleTag({ content: '.tv-floating-toolbar{display:none!important}' });
         await page.keyboard.press('Escape');      // dismiss any popup/dialog
 
-        if (L.moveLeft) {
-          await page.evaluate(([n, spacing]) => {
+        if (L.rightMargin) {
+          await page.evaluate(([margin, spacing]) => {
             const api = window.TradingViewApi;
+            // plot width = chart area minus the right price axis
+            const area = document.querySelector('.layout__area--center');
+            const axis = document.querySelector('.price-axis');
+            const plotW = area.clientWidth - (axis ? axis.clientWidth : 70);
             for (let i = 0; i < api.chartsCount(); i++) {
               const ch = api.chart(i), ts = ch.getTimeScale();
-              if (spacing) ts.setBarSpacing(spacing);
-              ts.setRightOffset(ts.defaultRightOffset().value() + n);
+              ts.setBarSpacing(spacing);
+              ts.setRightOffset(Math.round(margin * plotW / spacing));
               // re-fit prices to the bars now on screen (otherwise candles clip at the top)
               for (const pane of ch.getPanes()) {
                 const ps = pane.getMainSourcePriceScale && pane.getMainSourcePriceScale();
                 if (ps && ps.setAutoScale) ps.setAutoScale(true);
               }
             }
-          }, [L.moveLeft, L.barSpacing]);
+          }, [L.rightMargin, L.barSpacing]);
         }
         const studyErrors = await waitForStudies(page);
         await page.waitForTimeout(SETTLE_MS);
