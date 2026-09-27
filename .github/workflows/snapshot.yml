@@ -9,6 +9,10 @@ on:
         description: "Test: send all 3 layouts now, even on a weekend"
         type: boolean
         default: false
+      dry_run:
+        description: "Test: capture only, don't send to GoldBot"
+        type: boolean
+        default: false
   schedule:
     - cron: "7 * * * *"
 
@@ -61,5 +65,6 @@ jobs:
           GOLDBOT_URL: ${{ secrets.GOLDBOT_URL }}
           SNAPSHOT_TOKEN: ${{ secrets.SNAPSHOT_TOKEN }}
           FORCE: ${{ inputs.force && '1' || '' }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
         run: node run.mjs
       # No artifact upload on purpose: this repo is public and the charts show private indicators.
