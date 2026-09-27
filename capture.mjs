@@ -21,8 +21,12 @@ if (fs.existsSync('.env')) {
 // Same layouts/options as GoldBot_ALL_IN_ONE.gs (chart-img calls)
 export const LAYOUTS = [
   { id: 'FmF4WHeh', label: 'stoch' },                   // multi-chart, layout's own interval
-  { id: '7PPIaw7q', label: 'YLG_TRF', interval: '60' }, // chart-img used interval 1h
-  { id: 'gdi7WRyn', label: 'YLG_v2',  interval: '60' },
+  // moveLeft = extra empty bars on the right (chart-img moveLeft 50) so the indicators'
+  // right-side labels (Week High, Day Open, Fib levels…) are on screen instead of clipped
+  // barSpacing 9px (TV default ~11.6) fits ~4 days of 1h history + the right margin in our
+  // narrower crop — about what chart-img showed at 1920px
+  { id: '7PPIaw7q', label: 'YLG_TRF', interval: '60', moveLeft: 50, barSpacing: 9 },
+  { id: 'gdi7WRyn', label: 'YLG_v2',  interval: '60', moveLeft: 50, barSpacing: 9 },
 ];
 
 const WIDTH = 1920, HEIGHT = 1080;
@@ -155,6 +159,21 @@ export async function captureAll(layouts, { outDir = process.env.OUT_DIR || 'out
         await page.addStyleTag({ content: '.tv-floating-toolbar{display:none!important}' });
         await page.keyboard.press('Escape');      // dismiss any popup/dialog
 
+        if (L.moveLeft) {
+          await page.evaluate(([n, spacing]) => {
+            const api = window.TradingViewApi;
+            for (let i = 0; i < api.chartsCount(); i++) {
+              const ch = api.chart(i), ts = ch.getTimeScale();
+              if (spacing) ts.setBarSpacing(spacing);
+              ts.setRightOffset(ts.defaultRightOffset().value() + n);
+              // re-fit prices to the bars now on screen (otherwise candles clip at the top)
+              for (const pane of ch.getPanes()) {
+                const ps = pane.getMainSourcePriceScale && pane.getMainSourcePriceScale();
+                if (ps && ps.setAutoScale) ps.setAutoScale(true);
+              }
+            }
+          }, [L.moveLeft, L.barSpacing]);
+        }
         const studyErrors = await waitForStudies(page);
         await page.waitForTimeout(SETTLE_MS);
 
