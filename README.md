@@ -7,7 +7,7 @@ GitHub Actions. Free replacement for chart-img.
   white theme, no grid, extra right margin on the YLG layouts, waits until every
   indicator has finished loading, screenshots the chart area. Read-only: TradingView
   settings/layout saves are blocked, so the account is never modified.
-- `run.mjs`: picks what's due this hour (Asia/Bangkok, Mon-Fri; every hour → `stoch`,
+- `run.mjs`: picks what's due this hour (Asia/Bangkok, while gold trades Mon 05:00 → Sat 05:00; every hour → `stoch`,
   00/04/08/12/16/20 → `stoch` + `YLG_TRF` + `YLG_v2`), captures, POSTs the PNGs to
   GoldBot's Apps Script web app. GoldBot stores them in Drive and sends them in one LINE
   push, and it ignores a second upload in the same hour.

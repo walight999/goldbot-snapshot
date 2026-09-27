@@ -2,13 +2,13 @@
 // which stores them in Drive and pushes them to LINE as ONE push.
 //
 // Schedule (Asia/Bangkok, same as GoldBot's old masterSnapshotTrigger):
-//   every hour Mon-Fri → stoch;  00/04/08/12/16/20 → stoch + YLG_TRF + YLG_v2
+//   every hour while gold trades (Mon 05:00 → Sat 05:00) → stoch;  00/04/08/12/16/20 → + YLG_TRF + YLG_v2
 // GoldBot de-duplicates per hour, so a second trigger in the same hour sends nothing.
 //
 // Env: TV_SESSION_ID, TV_SESSION_ID_SIGN  (TradingView cookies)
 //      GOLDBOT_URL                         (Apps Script web app /exec URL)
 //      SNAPSHOT_TOKEN                      (shared secret, = Script Property SNAPSHOT_TOKEN)
-//      FORCE=1                             (ignore weekend + send all 3 layouts — manual test)
+//      FORCE=1                             (ignore market hours + send all 3 layouts — manual test)
 //      DRY_RUN=1                           (capture only, don't send)
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -22,9 +22,11 @@ export function bangkokNow(date = new Date()) {
     timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', weekday: 'short', hourCycle: 'h23',
   }).formatToParts(date).map(p => [p.type, p.value]));
   const hour = Number(parts.hour);
+  // Spot gold trades ~Mon 05:00 → Sat 05:00 Bangkok (same rule as GoldBot isGoldMarketOpenBkk_)
+  const closed = parts.weekday === 'Sun' || (parts.weekday === 'Sat' && hour >= 5) || (parts.weekday === 'Mon' && hour < 5);
   return {
     hour,
-    weekend: parts.weekday === 'Sat' || parts.weekday === 'Sun',
+    closed,
     hourKey: `${parts.year}${parts.month}${parts.day}-${parts.hour}`,   // = GoldBot's "yyyyMMdd-HH"
   };
 }
@@ -39,7 +41,7 @@ export function layoutsDue(hour, force) {
 async function main() {
   const force = process.env.FORCE === '1';
   const now = bangkokNow();
-  if (now.weekend && !force) { console.log(`[${now.hourKey}] weekend (Bangkok) — skip`); return; }
+  if (now.closed && !force) { console.log(`[${now.hourKey}] gold market closed (Bangkok) — skip`); return; }
 
   const due = layoutsDue(now.hour, force);
   console.log(`[${now.hourKey}] capturing: ${due.map(l => l.label).join(', ')}`);

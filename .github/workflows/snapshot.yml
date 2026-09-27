@@ -25,12 +25,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Weekend check (Asia/Bangkok)
+      - name: Market hours check (Asia/Bangkok)
         id: day
         run: |
-          dow=$(TZ=Asia/Bangkok date +%u)   # 6=Sat 7=Sun
-          if [ "$dow" -ge 6 ] && [ "${{ inputs.force }}" != "true" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"; echo "Weekend in Bangkok — skipping"
+          # gold trades ~Mon 05:00 → Sat 05:00 Bangkok; skip installs while it's closed
+          dow=$(TZ=Asia/Bangkok date +%u); hr=$((10#$(TZ=Asia/Bangkok date +%H)))
+          closed=false
+          if [ "$dow" -eq 7 ] || { [ "$dow" -eq 6 ] && [ "$hr" -ge 5 ]; } || { [ "$dow" -eq 1 ] && [ "$hr" -lt 5 ]; }; then closed=true; fi
+          if [ "$closed" = true ] && [ "${{ inputs.force }}" != "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"; echo "Gold market closed (Bangkok) — skipping"
           fi
 
       - uses: actions/checkout@v4
