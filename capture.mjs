@@ -144,7 +144,10 @@ export async function captureAll(layouts, { outDir = process.env.OUT_DIR || 'out
         if (!loggedIn) throw new Error('not logged in — TV session cookie expired or invalid (update TV_SESSION_ID / TV_SESSION_ID_SIGN)');
         if (await denied.isVisible()) throw new Error(`layout ${L.id} not accessible by this account`);
 
-        await waitForChartReady(page);
+        // a chart with no indicators means the layout lost its private scripts (access revoked,
+        // script deleted, or a half-valid session): never send that to the group as if it were fine
+        const nStudies = await waitForChartReady(page);
+        if (nStudies === 0) throw new Error('no indicators on the chart — private scripts not loaded (check the TV account / cookie)');
         const theme = await page.evaluate(async ([theme, overrides]) => {
           const api = window.TradingViewApi;
           const themes = await api.themes();
@@ -179,6 +182,8 @@ export async function captureAll(layouts, { outDir = process.env.OUT_DIR || 'out
           }, [L.rightMargin, L.barSpacing]);
         }
         const studyErrors = await waitForStudies(page);
+        // an indicator that ended in error is drawn as "!" with nothing on the chart → treat as a failed capture
+        if (studyErrors.length) throw new Error('indicator error on the chart: ' + studyErrors.join(', '));
         await page.waitForTimeout(SETTLE_MS);
 
         const file = path.join(outDir, `${L.label}.png`);
